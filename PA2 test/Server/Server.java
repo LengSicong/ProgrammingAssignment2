@@ -1,4 +1,5 @@
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
@@ -10,6 +11,11 @@ import java.nio.file.Paths;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
+
 
 public class Server {
 
@@ -21,6 +27,9 @@ public class Server {
 
         String certificateName = "server-ca.crt";
 
+        PrivateKey server_privateKey = null;
+        SecretKey sym_key = null;
+
         ServerSocket welcomeSocket = null;
         Socket connectionSocket = null;
         DataOutputStream toClient = null;
@@ -28,6 +37,9 @@ public class Server {
 
         FileInputStream fileInputStream = null;
         BufferedInputStream bufferedFileInputStream = null;
+
+        FileOutputStream fileOutputStream = null;
+        BufferedOutputStream bufferedFileOutputStream = null;
 
         try{
             welcomeSocket = new ServerSocket(port);
@@ -41,11 +53,11 @@ public class Server {
                 int packetType = fromClient.readInt();
 
                 // If the client is request for certificate
-                if (packetType == 0) {
+                if (packetType == 1) {
 
                     System.out.println("Received certificate request from client");
 
-                    System.out.println("Sending certificate name to server...");
+                    System.out.println("Sending certificate name to client...");
 
                     // Send the certificate name
                     toClient.writeInt(0);
@@ -69,27 +81,143 @@ public class Server {
                         toClient.writeInt(numBytes);
                         toClient.write(fromFileBuffer);
                         toClient.flush();
-
                     }
 
-                    System.out.println("Certificate successfully sended");
-                    fromClient.close();
-                    toClient.close();
-                    connectionSocket.close();
-                    
+                    bufferedFileInputStream.close();
+                    fileInputStream.close();
 
-                    
+                    System.out.println("Certificate successfully sended");
+                    // fromClient.close();
+                    // toClient.close();
+                    // connectionSocket.close();
+                
+                // If the client is request for identity message
+                } else if( packetType == 0) {
+
+                    System.out.println("Received identity request and nonce from client");
+
+                    // Receiving the nonce from client
+                    numBytes = fromClient.readInt();
+                    byte[] nonce = new byte[numBytes];
+                    fromClient.readFully(nonce, 0, numBytes);
+                    String non_String = new String(nonce);
+
+                    // Encrpt the greeting message + nonce using server's private key
+                    String greetingMessage = "Hello, this is SecStore! Please verify this nonce: " + non_String;
+
+                    System.out.println("greeting message and nonce sended: " + greetingMessage);
+
+                    Cipher serverCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+                    server_privateKey = privateKeyGet("server_private_key.der");
+                    serverCipher.init(Cipher.ENCRYPT_MODE, server_privateKey);
+
+                    byte[] greetingNonce = serverCipher.doFinal(greetingMessage.getBytes());
+
+                    System.out.println("Sending encrypted greeting message and nonce to client...");
+
+                    // Send encrypted greeting message and nonce to client
+                    toClient.writeInt(0);
+                    toClient.writeInt(greetingNonce.length);
+                    toClient.write(greetingNonce);
+                
+                // If the client is sending symmtric session key request to server
+                } else if ( packetType == 2){
+
+                    // Reiceve encrypted and encoded symmetric session key from client
+                    numBytes = fromClient.readInt();
+                    byte[] encryptedSessionKey = new byte[numBytes];
+                    fromClient.readFully(encryptedSessionKey, 0, numBytes);
+
+                    // Decrypt the key
+                    Cipher serverCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+                    server_privateKey = privateKeyGet("server_private_key.der");
+                    serverCipher.init(Cipher.DECRYPT_MODE, server_privateKey);
+
+                    byte[] decrypted_symkey = serverCipher.doFinal(encryptedSessionKey);
+
+                    // convert key from byte[] to Key
+                    sym_key = new SecretKeySpec(decrypted_symkey, 0, decrypted_symkey.length, "AES");
+
+                    System.out.println("Received symmtric session key from client");
+                
+                // Client is uploading files to server
+                } else if ( packetType == 3){
+
+                    while (true) {
+
+                        int packetType2 = fromClient.readInt();
+
+                        // If the packet is for transferring the name
+                        if ( packetType2 == 0){
+
+                            System.out.println("Receiving filename...");
+
+                            numBytes = fromClient.readInt();
+                            byte[] encryptedFileName = new byte[numBytes];
+                            fromClient.readFully(encryptedFileName, 0, numBytes);
+
+                            // Decrypt the filename using the symmetric session key
+                            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); 
+                            cipher.init(Cipher.DECRYPT_MODE, sym_key);
+
+                            byte[] decryptedfilename = cipher.doFinal(encryptedFileName);
+
+                            fileOutputStream = new FileOutputStream(new String(decryptedfilename, 0, decryptedfilename.length));
+                            bufferedFileOutputStream = new BufferedOutputStream(fileOutputStream);
+
+                            System.out.println("Filename received");
+
+                            // fileOutputStream.close();
+                            // bufferedFileOutputStream.close();
+                        
+                        // If the packet is for transferring a chunk of the file
+                        }else if ( packetType2 == 1){
+
+                            System.out.println("Receiving files...");
+
+                            numBytes = fromClient.readInt();
+                            Integer end = fromClient.readInt();
+                            byte[] encryptedBlock = new byte[numBytes];
+                            fromClient.readFully(encryptedBlock, 0, numBytes);
+
+                            // Decrypt the files
+                            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); 
+                            cipher.init(Cipher.DECRYPT_MODE, sym_key);
+                            
+                            byte[] decryptedBlock = cipher.doFinal(encryptedBlock);
+
+
+                            if (end > 0)
+                                bufferedFileOutputStream.write(decryptedBlock, 0, decryptedBlock.length);
+
+                            if (end < 128){
+                                System.out.println("File received successfully");
+
+                                if (bufferedFileOutputStream != null) bufferedFileOutputStream.close();
+						        if (bufferedFileOutputStream != null) fileOutputStream.close();
+                            }
+
+                            // End this file transfer
+                            break;
+
+                        }
+
+                    }
+                
+                // Closing the socket
+                } else if (packetType == 4){
+                    connectionSocket.close();
+                    toClient.close();
+                    fromClient.close();
                 }
 
             }
 
         } catch (Exception e) {e.printStackTrace();}
 
-
-
     }
 
-    public static PrivateKey get(String filename) throws Exception{
+    public static PrivateKey privateKeyGet(String filename) throws Exception{
         byte[] keyBytes = Files.readAllBytes(Paths.get(filename));
 
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
