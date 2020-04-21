@@ -41,8 +41,15 @@ public class Server {
         FileOutputStream fileOutputStream = null;
         BufferedOutputStream bufferedFileOutputStream = null;
 
-        try{
+        try {
             welcomeSocket = new ServerSocket(port);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        while (true) {
+        try{
+            
             connectionSocket = welcomeSocket.accept();
             fromClient = new DataInputStream(connectionSocket.getInputStream());
             toClient = new DataOutputStream(connectionSocket.getOutputStream());
@@ -165,7 +172,7 @@ public class Server {
                             fileOutputStream = new FileOutputStream(new String(decryptedfilename, 0, decryptedfilename.length));
                             bufferedFileOutputStream = new BufferedOutputStream(fileOutputStream);
 
-                            System.out.println("Filename received");
+                            System.out.println("Filename:" + new String(decryptedfilename, 0, decryptedfilename.length) + " received");
 
                             // fileOutputStream.close();
                             // bufferedFileOutputStream.close();
@@ -209,11 +216,15 @@ public class Server {
                     connectionSocket.close();
                     toClient.close();
                     fromClient.close();
+                    System.out.println("Current connection Lost");
+                    System.out.println("Waitting for the next client...");
                 }
 
             }
 
         } catch (Exception e) {e.printStackTrace();}
+
+    }
 
     }
 

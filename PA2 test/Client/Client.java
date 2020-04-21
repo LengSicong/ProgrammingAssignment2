@@ -218,27 +218,42 @@ public class Client {
                     clientSocket.close();
                     toServer.close();
                     fromServer.close();
+                    myScanner.close();
                     break;
                 }
 
-                // Send the encrypted filename 
-                toServer.writeInt(3);
+                // // Send the encrypted filename 
+                // toServer.writeInt(3);
 
-                // Encrypted the filename using symmetric session key
-                Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); 
-                cipher.init(Cipher.ENCRYPT_MODE, sym_key);
+                // // Encrypted the filename using symmetric session key
+                // Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); 
+                // cipher.init(Cipher.ENCRYPT_MODE, sym_key);
 
-                byte[] encryptedfilename = cipher.doFinal(uploadfilename.getBytes());
+                // byte[] encryptedfilename = cipher.doFinal(uploadfilename.getBytes());
 
-                // send the filename
-                toServer.writeInt(0);
-                toServer.writeInt(encryptedfilename.length);
-                toServer.write(encryptedfilename);
+                // // send the filename
+                // toServer.writeInt(0);
+                // toServer.writeInt(encryptedfilename.length);
+                // toServer.write(encryptedfilename);
 
                 // Open the file
                 try {
                     fileInputStream = new FileInputStream(uploadfilename);
                     bufferedFileInputStream = new BufferedInputStream(fileInputStream);
+
+                    // Send the encrypted filename 
+                    toServer.writeInt(3);
+
+                    // Encrypted the filename using symmetric session key
+                    Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); 
+                    cipher.init(Cipher.ENCRYPT_MODE, sym_key);
+
+                    byte[] encryptedfilename = cipher.doFinal(uploadfilename.getBytes());
+
+                    // send the filename
+                    toServer.writeInt(0);
+                    toServer.writeInt(encryptedfilename.length);
+                    toServer.write(encryptedfilename);
 
                     byte[] fromFileBuffer = new byte[128];
                     // Send the file
@@ -264,7 +279,7 @@ public class Client {
                     System.out.println("The file has successfully uploaded to the server");
                     
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    //e.printStackTrace();
                     System.out.println("Something wrong with the file name you type in");
                 }
 
