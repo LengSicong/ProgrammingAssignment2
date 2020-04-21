@@ -174,9 +174,6 @@ public class Server {
                                 System.out.println("Filename:"
                                         + new String(decryptedfilename, 0, decryptedfilename.length) + " received");
 
-                                // fileOutputStream.close();
-                                // bufferedFileOutputStream.close();
-
                                 // If the packet is for transferring a chunk of the file
                             } else if (packetType2 == 1) {
 
@@ -192,6 +189,12 @@ public class Server {
                                 cipher.init(Cipher.DECRYPT_MODE, sym_key);
 
                                 byte[] decryptedBlock = cipher.doFinal(encryptedBlock);
+
+                                // Print the received encrypted file chunk
+                                // System.out.println(new String(encryptedBlock));
+
+                                // Print the unencrypted file chunk
+                                // System.out.println(new String(decryptedBlock));
 
                                 if (end > 0)
                                     bufferedFileOutputStream.write(decryptedBlock, 0, decryptedBlock.length);

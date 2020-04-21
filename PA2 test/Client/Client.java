@@ -163,11 +163,6 @@ public class Client {
             byte[] decryptedGreeting = clientCipher.doFinal(identity);
             String greetingNonce = new String(decryptedGreeting);
 
-            // System.out.println(greetingNonce);
-            // System.out.println("Hello, this is SecStore! Please verify this nonce: " +
-            // nonce);
-            // System.out.println(nonce);
-
             // Verify the nonce
             if (greetingNonce.equals("Hello, this is SecStore! Please verify this nonce: " + nonce)) {
                 System.out.println("Authentification pass!");
@@ -223,22 +218,12 @@ public class Client {
                     break;
                 }
 
-                // // Send the encrypted filename
-                // toServer.writeInt(3);
-
-                // // Encrypted the filename using symmetric session key
-                // Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-                // cipher.init(Cipher.ENCRYPT_MODE, sym_key);
-
-                // byte[] encryptedfilename = cipher.doFinal(uploadfilename.getBytes());
-
-                // // send the filename
-                // toServer.writeInt(0);
-                // toServer.writeInt(encryptedfilename.length);
-                // toServer.write(encryptedfilename);
-
                 // Open the file
                 try {
+
+                    // Record the time of the start of file transfer
+                    long time_started = System.nanoTime();
+
                     fileInputStream = new FileInputStream(uploadfilename);
                     bufferedFileInputStream = new BufferedInputStream(fileInputStream);
 
@@ -262,8 +247,17 @@ public class Client {
 
                         // Encrypt the file
                         numBytes = bufferedFileInputStream.read(fromFileBuffer);
+                        if (numBytes == -1) {
+                            break;
+                        }
                         byte[] fromFileBuffer2 = Arrays.copyOfRange(fromFileBuffer, 0, numBytes);
                         byte[] encryptedFileBuffer = cipher.doFinal(fromFileBuffer2);
+
+                        // Print the unencrypted file chunk
+                        // System.out.println(new String(fromFileBuffer2));
+
+                        // Print the encrypted file chunk
+                        // System.out.println(new String(encryptedFileBuffer));
 
                         fileEnded = numBytes < 128;
 
@@ -279,8 +273,13 @@ public class Client {
 
                     System.out.println("The file has successfully uploaded to the server");
 
+                    // Caculate the time used for file transfer
+                    long time_spend = System.nanoTime() - time_started;
+
+                    System.out.println("The file transfer has take: " + time_spend / 1000000.0 + " ms to run");
+
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    // e.printStackTrace();
                     System.out.println("Something wrong with the file name you type in");
                 }
 
