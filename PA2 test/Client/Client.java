@@ -16,7 +16,6 @@ import java.util.Scanner;
 import java.security.SecureRandom;
 import javax.crypto.*;
 
-
 public class Client {
 
     public static void main(String[] args) {
@@ -65,12 +64,12 @@ public class Client {
 
             // while loop for waiting identity message from server
             while (true) {
-                
-                //Read the int transfer from the server
+
+                // Read the int transfer from the server
                 int packetType2 = fromServer.readInt();
 
                 // If server is sending encrypted identity message and nonce
-                if (packetType2 == 0){
+                if (packetType2 == 0) {
 
                     System.out.println("Receiving encrypted greeting and nonce message...");
 
@@ -79,19 +78,19 @@ public class Client {
                     fromServer.readFully(identity, 0, numBytes);
 
                     System.out.println("Encrypted Greeting and nonce message received");
-                    //String identity_String = new String(identity);
+                    // String identity_String = new String(identity);
 
                     // Identity checking finished
                     break;
                 }
 
             }
-            
+
             System.out.println("Sending Certificate Request...");
 
             // Send certificate request to Server
             toServer.writeInt(1);
-            
+
             // while loop for certificate verification
             while (true) {
 
@@ -108,9 +107,9 @@ public class Client {
                     fromServer.readFully(certificatename, 0, numBytes);
                     fileOutputStream = new FileOutputStream("recv_" + new String(certificatename, 0, numBytes));
                     bufferedFileOutputStream = new BufferedOutputStream(fileOutputStream);
-                
-                // If the server is sending the certificate file
-                } else if ( packetType == 1) {
+
+                    // If the server is sending the certificate file
+                } else if (packetType == 1) {
 
                     System.out.println("Receiving certificate file...");
 
@@ -119,12 +118,14 @@ public class Client {
                     fromServer.readFully(block, 0, numBytes);
 
                     if (numBytes > 0)
-						bufferedFileOutputStream.write(block, 0, numBytes);
+                        bufferedFileOutputStream.write(block, 0, numBytes);
 
-					if (numBytes < 117) {
+                    if (numBytes < 117) {
                         System.out.println("Certificate Received Successfully!");
-                        if (bufferedFileOutputStream != null) bufferedFileOutputStream.close();
-						if (bufferedFileOutputStream != null) fileOutputStream.close();
+                        if (bufferedFileOutputStream != null)
+                            bufferedFileOutputStream.close();
+                        if (bufferedFileOutputStream != null)
+                            fileOutputStream.close();
                         break;
                     }
 
@@ -142,7 +143,7 @@ public class Client {
             // Extract the public key of CA
             PublicKey ca_public = CAcert.getPublicKey();
 
-            //Verify the certificate received using CA's public key
+            // Verify the certificate received using CA's public key
             verify(ca_public);
 
             // Create X509Certificate object of CA
@@ -162,14 +163,15 @@ public class Client {
             byte[] decryptedGreeting = clientCipher.doFinal(identity);
             String greetingNonce = new String(decryptedGreeting);
 
-            //System.out.println(greetingNonce);
-            //System.out.println("Hello, this is SecStore! Please verify this nonce: " + nonce);
-            //System.out.println(nonce);
-            
+            // System.out.println(greetingNonce);
+            // System.out.println("Hello, this is SecStore! Please verify this nonce: " +
+            // nonce);
+            // System.out.println(nonce);
+
             // Verify the nonce
-            if (greetingNonce.equals("Hello, this is SecStore! Please verify this nonce: " + nonce)){
+            if (greetingNonce.equals("Hello, this is SecStore! Please verify this nonce: " + nonce)) {
                 System.out.println("Authentification pass!");
-            }else{
+            } else {
                 System.err.println("Authentification fail!");
                 System.out.println("ByeBye~");
                 toServer.close();
@@ -177,10 +179,9 @@ public class Client {
                 clientSocket.close();
             }
 
-
             // Generate the symmetric session key for further uploading
             KeyGenerator sym_keyGen = KeyGenerator.getInstance("AES");
-            sym_keyGen.init(128); 
+            sym_keyGen.init(128);
             SecretKey sym_key = sym_keyGen.generateKey();
 
             // Encrypt the symmetric session key using server's public key
@@ -198,21 +199,21 @@ public class Client {
             System.out.println("Symmtric session key sended");
 
             // Loop for user input and upload files
-            while (true){
+            while (true) {
 
                 // User input for the filename of upload file
                 Scanner myScanner = new Scanner(System.in);
                 System.out.println("Enter the name of file you want to upload: ");
 
-                while( !whetherInput ){
-                    if (myScanner.hasNextLine()){
-                    whetherInput = true;
-                    uploadfilename = myScanner.nextLine();
+                while (!whetherInput) {
+                    if (myScanner.hasNextLine()) {
+                        whetherInput = true;
+                        uploadfilename = myScanner.nextLine();
                     }
                 }
-                //myScanner.close();
+                // myScanner.close();
 
-                if (uploadfilename.equals("quit")){
+                if (uploadfilename.equals("quit")) {
                     // Send connection close signal to server
                     toServer.writeInt(4);
                     clientSocket.close();
@@ -222,11 +223,11 @@ public class Client {
                     break;
                 }
 
-                // // Send the encrypted filename 
+                // // Send the encrypted filename
                 // toServer.writeInt(3);
 
                 // // Encrypted the filename using symmetric session key
-                // Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); 
+                // Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
                 // cipher.init(Cipher.ENCRYPT_MODE, sym_key);
 
                 // byte[] encryptedfilename = cipher.doFinal(uploadfilename.getBytes());
@@ -241,11 +242,11 @@ public class Client {
                     fileInputStream = new FileInputStream(uploadfilename);
                     bufferedFileInputStream = new BufferedInputStream(fileInputStream);
 
-                    // Send the encrypted filename 
+                    // Send the encrypted filename
                     toServer.writeInt(3);
 
                     // Encrypted the filename using symmetric session key
-                    Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); 
+                    Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
                     cipher.init(Cipher.ENCRYPT_MODE, sym_key);
 
                     byte[] encryptedfilename = cipher.doFinal(uploadfilename.getBytes());
@@ -258,12 +259,12 @@ public class Client {
                     byte[] fromFileBuffer = new byte[128];
                     // Send the file
                     for (boolean fileEnded = false; !fileEnded;) {
-                        
+
                         // Encrypt the file
                         numBytes = bufferedFileInputStream.read(fromFileBuffer);
                         byte[] fromFileBuffer2 = Arrays.copyOfRange(fromFileBuffer, 0, numBytes);
                         byte[] encryptedFileBuffer = cipher.doFinal(fromFileBuffer2);
-                        
+
                         fileEnded = numBytes < 128;
 
                         toServer.writeInt(1);
@@ -277,25 +278,23 @@ public class Client {
                     fileInputStream.close();
 
                     System.out.println("The file has successfully uploaded to the server");
-                    
+
                 } catch (Exception e) {
-                    //e.printStackTrace();
+                    e.printStackTrace();
                     System.out.println("Something wrong with the file name you type in");
                 }
 
                 whetherInput = false;
-                
 
-            } 
+            }
 
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-
-
-        } catch (Exception e) {e.printStackTrace();}
-        
     }
 
-    public static void verify( PublicKey key){
+    public static void verify(PublicKey key) {
 
         try {
             // Create X509Certificate object of received certificate
@@ -320,10 +319,10 @@ public class Client {
 
     }
 
-    public static String nonceGenerator(){
+    public static String nonceGenerator() {
         SecureRandom secureRandom = new SecureRandom();
         StringBuilder stringBuilder = new StringBuilder();
-        for (int i=0; i<15; i++){
+        for (int i = 0; i < 15; i++) {
             stringBuilder.append(secureRandom.nextInt(10));
         }
         String randomNumber = stringBuilder.toString();
